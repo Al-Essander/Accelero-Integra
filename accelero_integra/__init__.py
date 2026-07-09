@@ -28,10 +28,14 @@ import bpy
 from . import operators, panels, properties
 
 _classes = (
+    properties.AcceleroCurvePoint,
     properties.AcceleroIntegraSettings,
+    operators.ACCELERO_UL_curve_points,
     operators.ACCELERO_OT_generate,
     operators.ACCELERO_OT_clear,
     operators.ACCELERO_OT_edit_curve,
+    operators.ACCELERO_OT_curve_point_add,
+    operators.ACCELERO_OT_curve_point_remove,
     panels.ACCELERO_PT_main,
     panels.ACCELERO_PT_graph_editor,
 )

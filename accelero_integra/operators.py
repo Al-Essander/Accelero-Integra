@@ -27,9 +27,17 @@ def _evaluate_position(props, t, duration):
         )
     if model == 'CUSTOM_CURVE':
         t_norm = t / duration if duration else 0.0
-        curve = props.custom_curve.curves[0]
-        return math_models.custom_curve_position(t_norm, props.x0, props.custom_x_end, curve.evaluate)
+        points = [(p.position, p.value) for p in props.custom_curve_points]
+        return math_models.custom_curve_position(t_norm, props.x0, props.custom_x_end, points)
     raise ValueError(f"Unknown model: {model}")
+
+
+def _ensure_default_curve_points(props):
+    if len(props.custom_curve_points) == 0:
+        start = props.custom_curve_points.add()
+        start.position, start.value = 0.0, 0.0
+        end = props.custom_curve_points.add()
+        end.position, end.value = 1.0, 1.0
 
 
 def _get_or_create_fcurve(obj, data_path, index):
@@ -64,8 +72,7 @@ class ACCELERO_OT_generate(bpy.types.Operator):
             return {'CANCELLED'}
 
         if props.model == 'CUSTOM_CURVE':
-            props.custom_curve.initialize()
-            props.custom_curve.update()
+            _ensure_default_curve_points(props)
 
         scene = context.scene
         fps = scene.render.fps / scene.render.fps_base
@@ -127,23 +134,68 @@ class ACCELERO_OT_clear(bpy.types.Operator):
 class ACCELERO_OT_edit_curve(bpy.types.Operator):
     bl_idname = "accelero_integra.edit_curve"
     bl_label = "Edit Progress Curve"
-    bl_description = "Draw a custom 0-1 progress curve between Start and End value"
+    bl_description = "Define a custom 0-1 progress curve between Start and End value"
     bl_options = {'REGISTER'}
 
     def invoke(self, context, event):
-        props = context.scene.accelero_integra
-        props.custom_curve.initialize()
+        _ensure_default_curve_points(context.scene.accelero_integra)
         return context.window_manager.invoke_props_dialog(self, width=420)
 
     def draw(self, context):
         props = context.scene.accelero_integra
         layout = self.layout
-        layout.label(text="Progress over time (X: time, Y: 0=Start Value, 1=End Value)")
-        layout.template_curve_mapping(props, "custom_curve")
+        layout.label(text="Points: Time 0-1 (start-end) -> Progress 0-1 (Start Value-End Value)")
+
+        row = layout.row()
+        row.template_list(
+            "ACCELERO_UL_curve_points", "",
+            props, "custom_curve_points",
+            props, "custom_curve_active_index",
+            rows=4,
+        )
+        col = row.column(align=True)
+        col.operator("accelero_integra.curve_point_add", icon='ADD', text="")
+        col.operator("accelero_integra.curve_point_remove", icon='REMOVE', text="")
+
         row = layout.row(align=True)
         row.prop(props, "x0", text="Start")
         row.prop(props, "custom_x_end", text="End")
 
     def execute(self, context):
-        context.scene.accelero_integra.custom_curve.update()
+        return {'FINISHED'}
+
+
+class ACCELERO_UL_curve_points(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "position", text="Time")
+        row.prop(item, "value", text="Progress")
+
+
+class ACCELERO_OT_curve_point_add(bpy.types.Operator):
+    bl_idname = "accelero_integra.curve_point_add"
+    bl_label = "Add Point"
+    bl_description = "Add a progress-curve control point"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        props = context.scene.accelero_integra
+        point = props.custom_curve_points.add()
+        point.position, point.value = 0.5, 0.5
+        props.custom_curve_active_index = len(props.custom_curve_points) - 1
+        return {'FINISHED'}
+
+
+class ACCELERO_OT_curve_point_remove(bpy.types.Operator):
+    bl_idname = "accelero_integra.curve_point_remove"
+    bl_label = "Remove Point"
+    bl_description = "Remove the selected progress-curve control point"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        props = context.scene.accelero_integra
+        index = props.custom_curve_active_index
+        if 0 <= index < len(props.custom_curve_points):
+            props.custom_curve_points.remove(index)
+            props.custom_curve_active_index = min(index, len(props.custom_curve_points) - 1)
         return {'FINISHED'}

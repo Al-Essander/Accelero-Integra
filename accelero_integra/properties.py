@@ -34,6 +34,11 @@ MODEL_ITEMS = (
 )
 
 
+class AcceleroCurvePoint(bpy.types.PropertyGroup):
+    position: bpy.props.FloatProperty(name="Time", min=0.0, max=1.0, default=0.5)
+    value: bpy.props.FloatProperty(name="Progress", min=0.0, max=1.0, default=0.5)
+
+
 class AcceleroIntegraSettings(bpy.types.PropertyGroup):
     target_object: bpy.props.PointerProperty(
         name="Object",
@@ -70,4 +75,5 @@ class AcceleroIntegraSettings(bpy.types.PropertyGroup):
     )
 
     custom_x_end: bpy.props.FloatProperty(name="End Value", default=1.0)
-    custom_curve: bpy.props.PointerProperty(type=bpy.types.CurveMapping)
+    custom_curve_points: bpy.props.CollectionProperty(type=AcceleroCurvePoint)
+    custom_curve_active_index: bpy.props.IntProperty()

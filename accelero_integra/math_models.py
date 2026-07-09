@@ -68,8 +68,25 @@ def exponential_approach(t, x0, v0, v_target, k):
     return x0 + v_target * t + dv / k * (1.0 - math.exp(-k * t))
 
 
-def custom_curve_position(t_norm, x0, x1, evaluate):
-    """Map a normalized 0..1 progress curve onto the x0..x1 range."""
+def custom_curve_position(t_norm, x0, x1, points):
+    """Map a hand-placed set of (time, progress) points, both in 0..1, onto x0..x1.
+
+    `points` need not be pre-sorted. Progress is piecewise-linear between
+    points, clamped to the first/last point outside their range.
+    """
     t_norm = min(max(t_norm, 0.0), 1.0)
-    y = evaluate(t_norm)
+    pts = sorted(points)
+    if not pts:
+        y = t_norm
+    elif t_norm <= pts[0][0]:
+        y = pts[0][1]
+    elif t_norm >= pts[-1][0]:
+        y = pts[-1][1]
+    else:
+        y = pts[-1][1]
+        for (t_a, y_a), (t_b, y_b) in zip(pts, pts[1:]):
+            if t_a <= t_norm <= t_b:
+                frac = (t_norm - t_a) / (t_b - t_a) if t_b > t_a else 0.0
+                y = y_a + frac * (y_b - y_a)
+                break
     return x0 + y * (x1 - x0)
